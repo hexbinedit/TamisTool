@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+{# TamisTool HTML Report Template — hexbinedit.io #}
+{# Phase 1: Jinja2 rendering will be wired in Phase 1 implementation. #}
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TamisTool Report — {{ client_name }}</title>
+  <style>
+    :root {
+      --bg: #0d1117; --surface: #161b22; --border: #30363d;
+      --text: #c9d1d9; --muted: #8b949e;
+      --green: #3fb950; --yellow: #d29922; --red: #f85149; --orange: #e3b341;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; padding: 2rem; }
+    header { border-bottom: 1px solid var(--border); padding-bottom: 1rem; margin-bottom: 2rem; }
+    header h1 { font-size: 1.5rem; }
+    header .meta { color: var(--muted); font-size: 0.875rem; margin-top: 0.25rem; }
+    .badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 99px; font-size: 0.75rem; font-weight: 600; }
+    .badge-green { background: #1f4a2a; color: var(--green); }
+    .badge-yellow { background: #3d2e00; color: var(--yellow); }
+    .badge-red { background: #3d1010; color: var(--red); }
+    .badge-orange { background: #3d2800; color: var(--orange); }
+    .section { margin-bottom: 2rem; }
+    .section h2 { font-size: 1.1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; margin-bottom: 1rem; }
+    .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; }
+    .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; }
+    .stat-card .value { font-size: 2rem; font-weight: 700; }
+    .stat-card .label { color: var(--muted); font-size: 0.8rem; margin-top: 0.25rem; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+    th { text-align: left; padding: 0.5rem 0.75rem; color: var(--muted); font-weight: 500; border-bottom: 1px solid var(--border); }
+    td { padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); }
+    tr:last-child td { border-bottom: none; }
+    tbody tr:hover { background: var(--surface); }
+    footer { margin-top: 3rem; color: var(--muted); font-size: 0.75rem; text-align: center; }
+    footer a { color: var(--muted); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>TamisTool Visibility Report</h1>
+    <p class="meta">
+      Client: <strong>{{ client_name }}</strong> &nbsp;|&nbsp;
+      Generated: <strong>{{ generated_at }}</strong> &nbsp;|&nbsp;
+      Scan ID: <strong>{{ scan_id }}</strong>
+    </p>
+  </header>
+
+  <div class="section">
+    <h2>Executive Summary</h2>
+    <div class="summary-grid">
+      <div class="stat-card">
+        <div class="value">{{ summary.total_tables }}</div>
+        <div class="label">Tables Discovered</div>
+      </div>
+      <div class="stat-card">
+        <div class="value" style="color: var(--green)">{{ summary.active_tables }}</div>
+        <div class="label">Active Tables</div>
+      </div>
+      <div class="stat-card">
+        <div class="value" style="color: var(--yellow)">{{ summary.empty_tables }}</div>
+        <div class="label">Empty Tables</div>
+      </div>
+      <div class="stat-card">
+        <div class="value" style="color: var(--red)">{{ summary.missing_baseline }}</div>
+        <div class="label">Missing Baseline Tables</div>
+      </div>
+      <div class="stat-card">
+        <div class="value">{{ summary.baseline_coverage_pct }}%</div>
+        <div class="label">Baseline Coverage</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Table Inventory</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Table</th>
+          <th>Status</th>
+          <th>Row Count</th>
+          <th>Last Event</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in table_inventory %}
+        <tr>
+          <td>{{ row.table_name }}</td>
+          <td>
+            {% if row.status == 'healthy' %}<span class="badge badge-green">healthy</span>
+            {% elif row.status == 'empty' %}<span class="badge badge-yellow">empty</span>
+            {% elif row.status == 'missing' %}<span class="badge badge-red">missing</span>
+            {% elif row.status == 'warning' %}<span class="badge badge-orange">warning</span>
+            {% else %}<span class="badge">{{ row.status }}</span>{% endif %}
+          </td>
+          <td>{{ row.row_count | default('—') }}</td>
+          <td>{{ row.last_event_time | default('—') }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="4" style="color: var(--muted); text-align: center;">No table results recorded.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section">
+    <h2>Baseline Gap Analysis</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Table</th>
+          <th>Status</th>
+          <th>Use Cases</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for entry in baseline_gaps %}
+        <tr>
+          <td>{{ entry.name }}</td>
+          <td>
+            {% if entry.status == 'present' %}<span class="badge badge-green">present</span>
+            {% elif entry.status == 'missing' %}<span class="badge badge-red">missing</span>
+            {% elif entry.status == 'empty' %}<span class="badge badge-yellow">empty</span>
+            {% else %}<span class="badge badge-orange">{{ entry.status }}</span>{% endif %}
+          </td>
+          <td style="color: var(--muted)">{{ entry.use_cases | join(', ') }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="3" style="color: var(--muted); text-align: center;">No baseline data available.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section">
+    <h2>Investigator Readiness</h2>
+    <table>
+      <thead>
+        <tr><th>Use Case</th><th>Required Tables</th><th>Readiness</th></tr>
+      </thead>
+      <tbody>
+        {% for uc in investigator_readiness %}
+        <tr>
+          <td>{{ uc.use_case }}</td>
+          <td>{{ uc.tables | join(', ') }}</td>
+          <td>
+            {% if uc.ready %}<span class="badge badge-green">&#10003; Ready</span>
+            {% else %}<span class="badge badge-red">&#10007; Gaps</span>{% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="3" style="color: var(--muted); text-align: center;">Not yet assessed.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <footer>
+    <p>Generated by <strong>TamisTool</strong> &mdash; <a href="https://hexbinedit.io" target="_blank">hexbinedit.io</a></p>
+  </footer>
+</body>
+</html>
