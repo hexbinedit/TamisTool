@@ -28,6 +28,8 @@ env/
 .env
 .env.*
 *.env
+# Allow the example file — it contains no real secrets
+!.env.example
 
 # -------------------------------------------------------------------
 # Testing and coverage
@@ -52,8 +54,10 @@ Thumbs.db
 # -------------------------------------------------------------------
 # TamisTool-specific
 # Note: ~/.tamis/ is a user-level config dir — NOT a repo artifact.
-#       Do not add ~/.tamis/ here.
+#       The entry below covers any .tamis/ that might appear in the
+#       working directory (e.g. token cache during local dev/testing).
 # -------------------------------------------------------------------
+.tamis/
 
 # SQLite database files — never commit client data
 *.db
