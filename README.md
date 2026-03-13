@@ -17,12 +17,19 @@ environment — answering the recurring question analysts face before every inve
 
 ---
 
-## Quick Install
+## Setup
 
 ```bash
 git clone https://github.com/hexbinedit/TamisTool.git
 cd TamisTool
-pipx install 
+
+# Create and activate a virtual environment
+python -m venv .venv
+source .venv/bin/activate        # Linux / macOS
+.venv\Scripts\activate           # Windows
+
+# Install dependencies
+pip install -e .
 ```
 
 ## Quick Start
