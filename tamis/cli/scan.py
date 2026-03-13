@@ -16,6 +16,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
+from tamis.auth.provider import build_provider
 from tamis.db.models import Scan, TableResult
 from tamis.db.session import get_session
 
@@ -30,21 +31,35 @@ class ScanType(str, Enum):
     health = "health_check"
 
 
+class AuthMode(str, Enum):
+    client_credentials = "client-credentials"
+    device_code = "device-code"
+
+
 @app.command("run")
 def scan_run(
     client: str = typer.Option(..., "--client", "-c", help="Target client name."),
     scan_type: ScanType = typer.Option(
         ScanType.discovery, "--type", "-t", help="Scan type to run."
     ),
+    auth_mode: AuthMode = typer.Option(
+        AuthMode.client_credentials,
+        "--auth",
+        help=(
+            "Authentication mode. "
+            "'client-credentials' (default) uses app ID + secret. "
+            "'device-code' uses an interactive browser challenge."
+        ),
+    ),
     # Credentials — never stored, passed at runtime only
     app_id: Optional[str] = typer.Option(
-        None, "--app-id", envvar="TAMIS_APP_ID", help="Azure AD service principal app ID."
+        None, "--app-id", envvar="TAMIS_APP_ID", help="Azure AD app registration client ID."
     ),
     app_secret: Optional[str] = typer.Option(
         None,
         "--app-secret",
         envvar="TAMIS_APP_SECRET",
-        help="Service principal secret.",
+        help="Client secret (client-credentials mode only).",
         hide_input=True,
     ),
     tenant_id: Optional[str] = typer.Option(
@@ -61,9 +76,40 @@ def scan_run(
 
     Phase 1 — Kusto connectivity not yet implemented.
     """
+    # ── Auth flag validation ──────────────────────────────────────────────
+    if not app_id:
+        err_console.print("[red]Error:[/red] --app-id (or TAMIS_APP_ID) is required.")
+        raise typer.Exit(code=1)
+
+    if not tenant_id:
+        err_console.print("[red]Error:[/red] --tenant-id (or TAMIS_TENANT_ID) is required.")
+        raise typer.Exit(code=1)
+
+    if auth_mode == AuthMode.client_credentials and not app_secret:
+        err_console.print(
+            "[red]Error:[/red] --app-secret (or TAMIS_APP_SECRET) is required "
+            "for --auth client-credentials."
+        )
+        raise typer.Exit(code=1)
+
+    if auth_mode == AuthMode.device_code and app_secret:
+        console.print(
+            "[yellow]WARN:[/yellow] --app-secret is ignored in device-code mode."
+        )
+
+    # ── Build auth provider ───────────────────────────────────────────────
+    provider = build_provider(
+        auth_mode=auth_mode.value,
+        tenant_id=tenant_id,
+        app_id=app_id,
+        app_secret=app_secret,
+    )
+    # credential = provider.get_credential()
+    # Passed to Kusto client in Phase 1 — provider is ready.
+
     console.print(
         f"[yellow]Phase 0:[/yellow] Scan execution is not yet implemented. "
-        f"Scan type '{scan_type.value}' for client '{client}' noted."
+        f"Scan type '{scan_type.value}' for client '{client}' | auth={auth_mode.value}."
     )
     console.print(
         "Kusto connectivity and scan logic will be added in Phase 1. "
